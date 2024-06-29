@@ -22,7 +22,7 @@ io.on('connection', socket => {
       const roomId = uuidv4();
       socket.join(roomId);
       io.to(match.id).emit('roomId', roomId);
-      socket.emit('roomId', roomId);
+      io.to(socket.id).emit('roomId', roomId);
     } else {
       waitingUsers.push(user);
     }
@@ -30,6 +30,18 @@ io.on('connection', socket => {
 
   socket.on('message', ({ roomId, message }) => {
     io.to(roomId).emit('message', message);
+  });
+
+  socket.on('offer', ({ roomId, offer }) => {
+    io.to(roomId).emit('offer', offer);
+  });
+
+  socket.on('answer', ({ roomId, answer }) => {
+    io.to(roomId).emit('answer', answer);
+  });
+
+  socket.on('ice-candidate', ({ roomId, candidate }) => {
+    io.to(roomId).emit('ice-candidate', candidate);
   });
 
   socket.on('disconnect', () => {

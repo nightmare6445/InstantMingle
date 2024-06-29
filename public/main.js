@@ -6,12 +6,14 @@ const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const messages = document.getElementById('messages');
 const startButton = document.getElementById('startButton');
+const skipButton = document.getElementById('skipButton');
 const genderSelect = document.getElementById('gender');
 const preferenceSelect = document.getElementById('preference');
 
 let localStream;
 let remoteStream = new MediaStream();
 let peerConnection;
+let currentRoomId;
 const configuration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' }
@@ -27,7 +29,7 @@ async function startVideo() {
   }
 }
 
-async function createPeerConnection(roomId) {
+function createPeerConnection(roomId) {
   peerConnection = new RTCPeerConnection(configuration);
 
   peerConnection.addEventListener('icecandidate', event => {
@@ -53,9 +55,7 @@ async function createPeerConnection(roomId) {
   remoteVideo.srcObject = remoteStream;
 }
 
-socket.on('roomId', async roomId => {
-  await createPeerConnection(roomId);
-
+function handleIncomingCall(roomId) {
   socket.on('offer', async offer => {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peerConnection.createAnswer();
@@ -74,22 +74,41 @@ socket.on('roomId', async roomId => {
       console.error('Error adding received ice candidate', error);
     }
   });
+}
 
-  socket.emit('join', roomId);
+function connectToNewUser() {
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+    remoteStream = new MediaStream();
+    remoteVideo.srcObject = remoteStream;
+  }
+
+  const gender = genderSelect.value;
+  const preference = preferenceSelect.value;
+  socket.emit('join', { gender, preference });
+}
+
+socket.on('roomId', async roomId => {
+  currentRoomId = roomId;
+  createPeerConnection(roomId);
+  handleIncomingCall(roomId);
 });
 
 sendButton.addEventListener('click', () => {
   const message = messageInput.value;
-  const roomId = socket.roomId;
+  const roomId = currentRoomId;
   socket.emit('message', { roomId, message });
   messageInput.value = '';
 });
 
 startButton.addEventListener('click', () => {
-  const gender = genderSelect.value;
-  const preference = preferenceSelect.value;
-  socket.emit('join', { gender, preference });
   startVideo();
+  connectToNewUser();
+});
+
+skipButton.addEventListener('click', () => {
+  connectToNewUser();
 });
 
 startVideo();
