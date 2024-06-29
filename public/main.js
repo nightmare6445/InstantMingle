@@ -97,8 +97,7 @@ socket.on('roomId', async roomId => {
 
 sendButton.addEventListener('click', () => {
   const message = messageInput.value;
-  const roomId = currentRoomId;
-  socket.emit('message', { roomId, message });
+  socket.emit('message', { roomId: currentRoomId, message });
   messageInput.value = '';
 });
 
