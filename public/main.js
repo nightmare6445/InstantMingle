@@ -10,7 +10,7 @@ const genderSelect = document.getElementById('gender');
 const preferenceSelect = document.getElementById('preference');
 
 let localStream;
-let remoteStream;
+let remoteStream = new MediaStream();
 let peerConnection;
 const configuration = {
   iceServers: [
@@ -37,23 +37,24 @@ async function createPeerConnection(roomId) {
   });
 
   peerConnection.addEventListener('track', event => {
-    remoteStream = event.streams[0];
-    remoteVideo.srcObject = remoteStream;
+    remoteStream.addTrack(event.track);
+  });
+
+  peerConnection.addEventListener('negotiationneeded', async () => {
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('offer', { roomId, offer });
   });
 
   localStream.getTracks().forEach(track => {
     peerConnection.addTrack(track, localStream);
   });
+
+  remoteVideo.srcObject = remoteStream;
 }
 
 socket.on('roomId', async roomId => {
   await createPeerConnection(roomId);
-
-  socket.on('message', message => {
-    const newMessage = document.createElement('div');
-    newMessage.textContent = message;
-    messages.appendChild(newMessage);
-  });
 
   socket.on('offer', async offer => {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
@@ -90,3 +91,5 @@ startButton.addEventListener('click', () => {
   socket.emit('join', { gender, preference });
   startVideo();
 });
+
+startVideo();
