@@ -1,18 +1,19 @@
 {
   "name": "instantmingle",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "A WebRTC application for connecting users via video chat.",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5",
     "uuid": "^10.0.0"
   },
-  "description": ""
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "author": "Nightmare6445",
+  "license": "MIT"
 }
