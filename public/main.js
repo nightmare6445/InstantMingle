@@ -43,9 +43,14 @@ function createPeerConnection() {
     };
 
     localStream.getTracks().forEach(track => {
+        console.log('Adding local track:', track);
         peerConnection.addTrack(track, localStream);
     });
 }
+
+socket.on('roomId', roomId => {
+    console.log('Received roomId:', roomId);
+});
 
 socket.on('offer', async ({ offer }) => {
     console.log('Received offer:', offer);
@@ -70,6 +75,9 @@ socket.on('ice-candidate', async ({ candidate }) => {
 
 document.getElementById('startButton').addEventListener('click', () => {
     console.log('Start button clicked');
+    const gender = document.getElementById('gender').value;
+    const preference = document.getElementById('preference').value;
+    socket.emit('join', { gender, preference });
     if (!peerConnection) createPeerConnection();
     peerConnection.createOffer()
         .then(offer => {
@@ -79,4 +87,15 @@ document.getElementById('startButton').addEventListener('click', () => {
         .then(() => {
             socket.emit('offer', { offer: peerConnection.localDescription });
         });
+});
+
+document.getElementById('skipButton').addEventListener('click', () => {
+    console.log('Skip button clicked');
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    const gender = document.getElementById('gender').value;
+    const preference = document.getElementById('preference').value;
+    socket.emit('join', { gender, preference });
 });

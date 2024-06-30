@@ -22,6 +22,7 @@ io.on('connection', (socket) => {
     console.log('New user connected');
 
     socket.on('join', ({ gender, preference }) => {
+        console.log('User joined with gender:', gender, 'and preference:', preference);
         const user = { id: socket.id, gender, preference };
         const match = findMatch(user);
 
@@ -35,20 +36,22 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('message', ({ roomId, message }) => {
-        io.to(roomId).emit('message', message);
+    socket.on('offer', ({ offer }) => {
+        const room = Object.keys(socket.rooms).find(room => room !== socket.id);
+        console.log('Received offer for room:', room);
+        io.to(room).emit('offer', { offer });
     });
 
-    socket.on('offer', ({ roomId, offer }) => {
-        io.to(roomId).emit('offer', offer);
+    socket.on('answer', ({ answer }) => {
+        const room = Object.keys(socket.rooms).find(room => room !== socket.id);
+        console.log('Received answer for room:', room);
+        io.to(room).emit('answer', { answer });
     });
 
-    socket.on('answer', ({ roomId, answer }) => {
-        io.to(roomId).emit('answer', answer);
-    });
-
-    socket.on('ice-candidate', ({ roomId, candidate }) => {
-        io.to(roomId).emit('ice-candidate', candidate);
+    socket.on('ice-candidate', ({ candidate }) => {
+        const room = Object.keys(socket.rooms).find(room => room !== socket.id);
+        console.log('Received ICE candidate for room:', room);
+        io.to(room).emit('ice-candidate', { candidate });
     });
 
     socket.on('disconnect', () => {
