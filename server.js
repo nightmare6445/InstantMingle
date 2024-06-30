@@ -17,9 +17,10 @@ app.get('*', (req, res) => {
 let waitingUsers = [];
 
 io.on('connection', (socket) => {
-    console.log('New user connected');
+    console.log('New user connected', socket.id);
 
     socket.on('join', ({ gender, preference }) => {
+        console.log('User joined with gender:', gender, 'and preference:', preference);
         const user = { id: socket.id, gender, preference };
         const match = findMatch(user);
 
@@ -34,24 +35,28 @@ io.on('connection', (socket) => {
     });
 
     socket.on('message', ({ roomId, message }) => {
+        console.log('Received message:', message);
         io.to(roomId).emit('message', message);
     });
 
     socket.on('offer', ({ roomId, offer }) => {
+        console.log('Received offer for room:', roomId);
         io.to(roomId).emit('offer', offer);
     });
 
     socket.on('answer', ({ roomId, answer }) => {
+        console.log('Received answer for room:', roomId);
         io.to(roomId).emit('answer', answer);
     });
 
     socket.on('ice-candidate', ({ roomId, candidate }) => {
+        console.log('Received ICE candidate for room:', roomId);
         io.to(roomId).emit('ice-candidate', candidate);
     });
 
     socket.on('disconnect', () => {
         waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
-        console.log('User disconnected');
+        console.log('User disconnected', socket.id);
     });
 });
 
