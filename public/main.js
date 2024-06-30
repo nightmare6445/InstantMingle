@@ -1,3 +1,5 @@
+console.log('main.js loaded');
+
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 let localStream;
@@ -12,6 +14,7 @@ const constraints = {
 
 navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
+        console.log('Got MediaStream:', stream);
         localVideo.srcObject = stream;
         localStream = stream;
     })
@@ -25,14 +28,17 @@ const configuration = {
 
 function createPeerConnection() {
     peerConnection = new RTCPeerConnection(configuration);
+    console.log('Created RTCPeerConnection');
 
     peerConnection.onicecandidate = ({ candidate }) => {
         if (candidate) {
+            console.log('Sending ICE candidate:', candidate);
             socket.emit('ice-candidate', { candidate });
         }
     };
 
     peerConnection.ontrack = event => {
+        console.log('Received remote stream:', event.streams[0]);
         remoteVideo.srcObject = event.streams[0];
     };
 
@@ -42,6 +48,7 @@ function createPeerConnection() {
 }
 
 socket.on('offer', async ({ offer }) => {
+    console.log('Received offer:', offer);
     if (!peerConnection) createPeerConnection();
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peerConnection.createAnswer();
@@ -50,19 +57,25 @@ socket.on('offer', async ({ offer }) => {
 });
 
 socket.on('answer', async ({ answer }) => {
+    console.log('Received answer:', answer);
     await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
 });
 
 socket.on('ice-candidate', async ({ candidate }) => {
     if (candidate) {
+        console.log('Adding received ICE candidate:', candidate);
         await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     }
 });
 
 document.getElementById('startButton').addEventListener('click', () => {
+    console.log('Start button clicked');
     if (!peerConnection) createPeerConnection();
     peerConnection.createOffer()
-        .then(offer => peerConnection.setLocalDescription(offer))
+        .then(offer => {
+            console.log('Created offer:', offer);
+            return peerConnection.setLocalDescription(offer);
+        })
         .then(() => {
             socket.emit('offer', { offer: peerConnection.localDescription });
         });

@@ -4,31 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InstantMingle</title>
-    <link rel="stylesheet" href="public/styles.css">
+    <link rel="stylesheet" href="styles.css">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://vercel.live; script-src 'self' 'unsafe-inline' https://vercel.live">
 </head>
 <body>
-    <video id="localVideo" autoplay muted></video>
-    <video id="remoteVideo" autoplay></video>
-    <div>
-        <input id="messageInput" type="text" placeholder="Type your message...">
-        <button id="sendButton">Send</button>
+    <div id="app">
+        <video id="localVideo" autoplay muted></video>
+        <video id="remoteVideo" autoplay></video>
+        <div id="chatBox">
+            <div id="messages"></div>
+            <input id="messageInput" type="text" placeholder="Type your message...">
+            <button id="sendButton">Send</button>
+        </div>
+        <div>
+            <select id="gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+            <select id="preference">
+                <option value="any">Any</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+        </div>
+        <div>
+            <button id="startButton">Start</button>
+            <button id="skipButton">Skip</button>
+        </div>
     </div>
-    <div>
-        <select id="gender">
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-        </select>
-        <select id="preference">
-            <option value="any">Any</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-        </select>
-    </div>
-    <div>
-        <button id="startButton">Start</button>
-        <button id="skipButton">Skip</button>
-    </div>
-    <script src="public/main.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
