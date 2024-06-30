@@ -1,4 +1,4 @@
-const socket = io('https://your-deployed-server-url'); // Replace with your deployed server URL
+const socket = io('https://instantmingle-ff3a9a189a3e.herokuapp.com'); // Replace with your Heroku app URL
 
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
