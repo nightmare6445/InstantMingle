@@ -11,7 +11,7 @@ app.use(express.static('public'));
 
 let waitingUsers = [];
 
-io.on('connection', socket => {
+io.on('connection', (socket) => {
   console.log('New user connected');
 
   socket.on('join', ({ gender, preference }) => {

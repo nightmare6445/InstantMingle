@@ -1,4 +1,4 @@
-const socket = io();
+const socket = io('https://your-deployed-server-url'); // Replace with your deployed server URL
 
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
@@ -40,6 +40,7 @@ function createPeerConnection(roomId) {
 
   peerConnection.addEventListener('track', event => {
     remoteStream.addTrack(event.track);
+    remoteVideo.srcObject = remoteStream;
   });
 
   peerConnection.addEventListener('negotiationneeded', async () => {
@@ -51,8 +52,6 @@ function createPeerConnection(roomId) {
   localStream.getTracks().forEach(track => {
     peerConnection.addTrack(track, localStream);
   });
-
-  remoteVideo.srcObject = remoteStream;
 }
 
 function handleIncomingCall(roomId) {
