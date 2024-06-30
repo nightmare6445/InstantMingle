@@ -8,19 +8,20 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files from the "public" directory
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
-app.get('*', (req, res) => {
+// Serve index.html from the root
+app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 let waitingUsers = [];
 
 io.on('connection', (socket) => {
-    console.log('New user connected', socket.id);
+    console.log('New user connected');
 
     socket.on('join', ({ gender, preference }) => {
-        console.log('User joined with gender:', gender, 'and preference:', preference);
         const user = { id: socket.id, gender, preference };
         const match = findMatch(user);
 
@@ -35,28 +36,24 @@ io.on('connection', (socket) => {
     });
 
     socket.on('message', ({ roomId, message }) => {
-        console.log('Received message:', message);
         io.to(roomId).emit('message', message);
     });
 
     socket.on('offer', ({ roomId, offer }) => {
-        console.log('Received offer for room:', roomId);
         io.to(roomId).emit('offer', offer);
     });
 
     socket.on('answer', ({ roomId, answer }) => {
-        console.log('Received answer for room:', roomId);
         io.to(roomId).emit('answer', answer);
     });
 
     socket.on('ice-candidate', ({ roomId, candidate }) => {
-        console.log('Received ICE candidate for room:', roomId);
         io.to(roomId).emit('ice-candidate', candidate);
     });
 
     socket.on('disconnect', () => {
         waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
-        console.log('User disconnected', socket.id);
+        console.log('User disconnected');
     });
 });
 
