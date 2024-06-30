@@ -28,7 +28,7 @@ function createPeerConnection() {
 
     peerConnection.ontrack = event => {
         console.log('Received remote stream:', event.streams[0]);
-        remoteVideo.srcObject = event.streams[0]);
+        remoteVideo.srcObject = event.streams[0];
     };
 
     localStream.getTracks().forEach(track => {

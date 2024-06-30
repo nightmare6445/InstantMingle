@@ -49,12 +49,6 @@ io.on('connection', (socket) => {
         io.to(room).emit('answer', { answer });
     });
 
-    socket.on('ice-candidate', ({ candidate }) => {
-        const room = Object.keys(socket.rooms).find(room => room !== socket.id);
-        console.log('Received ICE candidate for room:', room);
-        io.to(room).emit('ice-candidate', { candidate });
-    });
-
     socket.on('disconnect', () => {
         waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
         console.log('User disconnected');
@@ -77,3 +71,4 @@ function findMatch(user) {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
