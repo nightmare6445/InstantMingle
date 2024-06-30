@@ -18,6 +18,7 @@ app.get('/', (req, res) => {
 
 let waitingUsers = [];
 
+// Socket.IO connection event
 io.on('connection', (socket) => {
     console.log('New user connected');
 

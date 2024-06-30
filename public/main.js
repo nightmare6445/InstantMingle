@@ -22,24 +22,13 @@ navigator.mediaDevices.getUserMedia(constraints)
         console.error('Error accessing media devices.', error);
     });
 
-const configuration = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-};
-
 function createPeerConnection() {
-    peerConnection = new RTCPeerConnection(configuration);
+    peerConnection = new RTCPeerConnection();
     console.log('Created RTCPeerConnection');
-
-    peerConnection.onicecandidate = ({ candidate }) => {
-        if (candidate) {
-            console.log('Sending ICE candidate:', candidate);
-            socket.emit('ice-candidate', { candidate });
-        }
-    };
 
     peerConnection.ontrack = event => {
         console.log('Received remote stream:', event.streams[0]);
-        remoteVideo.srcObject = event.streams[0];
+        remoteVideo.srcObject = event.streams[0]);
     };
 
     localStream.getTracks().forEach(track => {
@@ -64,13 +53,6 @@ socket.on('offer', async ({ offer }) => {
 socket.on('answer', async ({ answer }) => {
     console.log('Received answer:', answer);
     await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-});
-
-socket.on('ice-candidate', async ({ candidate }) => {
-    if (candidate) {
-        console.log('Adding received ICE candidate:', candidate);
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    }
 });
 
 document.getElementById('startButton').addEventListener('click', () => {
@@ -99,3 +81,4 @@ document.getElementById('skipButton').addEventListener('click', () => {
     const preference = document.getElementById('preference').value;
     socket.emit('join', { gender, preference });
 });
+
