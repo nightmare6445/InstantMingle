@@ -2,8 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
-const fetch = require('node-fetch'); // Ensure node-fetch is added
-const bodyParser = require('body-parser'); // Ensure body-parser is added
+const bodyParser = require('body-parser');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,23 +11,6 @@ const io = socketIo(server);
 app.use(express.static('public'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-app.post('/verify', async (req, res) => {
-    const secretKey = '6Ldy5gIqAAAAAB7ZRuoZjfviwVhU97hULJp5BJw_'; // Replace with your Secret Key
-    const responseKey = req.body['g-recaptcha-response'];
-    const url = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${responseKey}`;
-
-    const response = await fetch(url, {
-        method: 'post'
-    });
-    const googleResponse = await response.json();
-
-    if (googleResponse.success) {
-        return res.json({ success: true });
-    } else {
-        return res.json({ success: false, error: googleResponse['error-codes'] });
-    }
-});
 
 let waitingUsers = [];
 
