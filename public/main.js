@@ -4,78 +4,71 @@ const startButton = document.getElementById('startButton');
 const skipButton = document.getElementById('skipButton');
 
 let localStream;
-let remoteStream;
 let peerConnection;
-const config = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+let socket = io();
+
+const constraints = {
+  video: true,
+  audio: true
 };
 
-startButton.onclick = start;
-skipButton.onclick = skip;
+async function startStream() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    localVideo.srcObject = localStream;
+  } catch (error) {
+    console.error('Error accessing media devices.', error);
+  }
+}
 
-navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    .then(stream => {
-        localStream = stream;
-        localVideo.srcObject = stream;
-    })
-    .catch(error => {
-        console.error('Error accessing media devices.', error);
-    });
-
-const socket = io();
-
-socket.on('connect', () => {
-    console.log('Connected to signaling server');
+startButton.addEventListener('click', () => {
+  startStream().then(() => {
+    socket.emit('ready', { gender: document.getElementById('gender').value, preference: document.getElementById('preference').value });
+  });
 });
 
-socket.on('offer', (id, description) => {
-    peerConnection = new RTCPeerConnection(config);
-    peerConnection.setRemoteDescription(description);
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-    peerConnection.createAnswer()
-        .then(sdp => peerConnection.setLocalDescription(sdp))
-        .then(() => {
-            socket.emit('answer', id, peerConnection.localDescription);
-        });
-    peerConnection.ontrack = event => {
-        remoteStream = event.streams[0];
-        remoteVideo.srcObject = remoteStream;
-    };
+skipButton.addEventListener('click', () => {
+  socket.emit('skip');
+  resetCall();
 });
 
-socket.on('answer', (description) => {
-    peerConnection.setRemoteDescription(description);
-});
-
-socket.on('candidate', (id, candidate) => {
-    peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-});
-
-socket.on('disconnectPeer', (id) => {
+function resetCall() {
+  if (peerConnection) {
     peerConnection.close();
-    remoteVideo.srcObject = null;
-    console.log(`Peer ${id} disconnected`);
+    peerConnection = null;
+  }
+  remoteVideo.srcObject = null;
+}
+
+socket.on('offer', async (id, description) => {
+  peerConnection = new RTCPeerConnection();
+  peerConnection.onicecandidate = event => {
+    if (event.candidate) {
+      socket.emit('candidate', id, event.candidate);
+    }
+  };
+  peerConnection.ontrack = event => {
+    remoteVideo.srcObject = event.streams[0];
+  };
+  await peerConnection.setRemoteDescription(description);
+  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+  socket.emit('answer', id, peerConnection.localDescription);
 });
 
-function start() {
-    peerConnection = new RTCPeerConnection(config);
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-    peerConnection.ontrack = event => {
-        remoteStream = event.streams[0];
-        remoteVideo.srcObject = remoteStream;
-    };
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            socket.emit('candidate', socket.id, event.candidate);
-        }
-    };
-    peerConnection.createOffer()
-        .then(sdp => peerConnection.setLocalDescription(sdp))
-        .then(() => {
-            socket.emit('offer', socket.id, peerConnection.localDescription);
-        });
-}
+socket.on('answer', async (description) => {
+  await peerConnection.setRemoteDescription(description);
+});
 
-function skip() {
-    socket.emit('skip');
-}
+socket.on('candidate', async (candidate) => {
+  try {
+    await peerConnection.addIceCandidate(candidate);
+  } catch (error) {
+    console.error('Error adding received ICE candidate', error);
+  }
+});
+
+socket.on('disconnectPeer', () => {
+  resetCall();
+});
