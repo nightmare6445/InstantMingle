@@ -1,4 +1,3 @@
-// main.js
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const startButton = document.getElementById('startButton');
