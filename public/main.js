@@ -1,87 +1,82 @@
-const socket = io();
+// main.js
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const startButton = document.getElementById('startButton');
-const callButton = document.getElementById('callButton');
-const hangupButton = document.getElementById('hangupButton');
+const skipButton = document.getElementById('skipButton');
 
 let localStream;
 let remoteStream;
 let peerConnection;
-const servers = null;
-
-const constraints = {
-  video: true,
-  audio: true
+const config = {
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
 
 startButton.onclick = start;
-callButton.onclick = call;
-hangupButton.onclick = hangup;
+skipButton.onclick = skip;
 
-function start() {
-  navigator.mediaDevices.getUserMedia(constraints)
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     .then(stream => {
-      localVideo.srcObject = stream;
-      localStream = stream;
-      socket.emit('join', 'room1');
+        localStream = stream;
+        localVideo.srcObject = stream;
     })
     .catch(error => {
-      console.error('Error accessing media devices.', error);
+        console.error('Error accessing media devices.', error);
     });
-}
 
-function call() {
-  peerConnection = new RTCPeerConnection(servers);
-  peerConnection.onicecandidate = handleIceCandidate;
-  peerConnection.ontrack = handleRemoteStreamAdded;
-  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-  
-  peerConnection.createOffer()
-    .then(sessionDescription => {
-      peerConnection.setLocalDescription(sessionDescription);
-      socket.emit('message', sessionDescription);
-    })
-    .catch(error => console.error('Error creating offer.', error));
-}
+const socket = io();
 
-function handleIceCandidate(event) {
-  if (event.candidate) {
-    socket.emit('message', {
-      type: 'candidate',
-      candidate: event.candidate
-    });
-  }
-}
+socket.on('connect', () => {
+    console.log('Connected to signaling server');
+});
 
-function handleRemoteStreamAdded(event) {
-  remoteVideo.srcObject = event.streams[0];
-}
-
-function hangup() {
-  peerConnection.close();
-  peerConnection = null;
-}
-
-socket.on('message', message => {
-  if (message.type === 'offer') {
-    peerConnection = new RTCPeerConnection(servers);
-    peerConnection.onicecandidate = handleIceCandidate;
-    peerConnection.ontrack = handleRemoteStreamAdded;
-    peerConnection.setRemoteDescription(new RTCSessionDescription(message));
+socket.on('offer', (id, description) => {
+    peerConnection = new RTCPeerConnection(config);
+    peerConnection.setRemoteDescription(description);
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-    
     peerConnection.createAnswer()
-      .then(sessionDescription => {
-        peerConnection.setLocalDescription(sessionDescription);
-        socket.emit('message', sessionDescription);
-      })
-      .catch(error => console.error('Error creating answer.', error));
-  } else if (message.type === 'answer') {
-    peerConnection.setRemoteDescription(new RTCSessionDescription(message));
-  } else if (message.type === 'candidate') {
-    const candidate = new RTCIceCandidate({
-      sdpMLineIndex: message.candidate.sdpMLineIndex,
-      candidate: message.candidate.candidate
-    });
-    peerConnection.addIce
+        .then(sdp => peerConnection.setLocalDescription(sdp))
+        .then(() => {
+            socket.emit('answer', id, peerConnection.localDescription);
+        });
+    peerConnection.ontrack = event => {
+        remoteStream = event.streams[0];
+        remoteVideo.srcObject = remoteStream;
+    };
+});
+
+socket.on('answer', (description) => {
+    peerConnection.setRemoteDescription(description);
+});
+
+socket.on('candidate', (id, candidate) => {
+    peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+});
+
+socket.on('disconnectPeer', (id) => {
+    peerConnection.close();
+    remoteVideo.srcObject = null;
+    console.log(`Peer ${id} disconnected`);
+});
+
+function start() {
+    peerConnection = new RTCPeerConnection(config);
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    peerConnection.ontrack = event => {
+        remoteStream = event.streams[0];
+        remoteVideo.srcObject = remoteStream;
+    };
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            socket.emit('candidate', socket.id, event.candidate);
+        }
+    };
+    peerConnection.createOffer()
+        .then(sdp => peerConnection.setLocalDescription(sdp))
+        .then(() => {
+            socket.emit('offer', socket.id, peerConnection.localDescription);
+        });
+}
+
+function skip() {
+    socket.emit('skip');
+}
