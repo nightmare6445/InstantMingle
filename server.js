@@ -1,41 +1,38 @@
-
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const socketIo = require('socket.io');
-const uuid = require('uuid');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-const port = process.env.PORT || 3000;
+app.use(express.static(path.join(__dirname, 'public')));
 
-let rooms = {};
-
-io.on('connection', socket => {
-    console.log('New client connected');
-
-    socket.on('join', ({ gender, preference }) => {
-        const roomId = uuid.v4();
-        rooms[roomId] = { clients: [socket.id], gender, preference };
-        socket.join(roomId);
-        socket.emit('roomId', roomId);
-    });
-
-    socket.on('offer', ({ offer, roomId }) => {
-        socket.to(roomId).emit('offer', { offer });
-    });
-
-    socket.on('answer', ({ answer, roomId }) => {
-        socket.to(roomId).emit('answer', { answer });
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Client disconnected');
-        // Handle cleanup and room management on disconnect
-    });
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.use(express.static('public'));
+io.on('connection', (socket) => {
+  console.log('a user connected');
+  
+  socket.on('disconnect', () => {
+    console.log('user disconnected');
+  });
+  
+  socket.on('join', (room) => {
+    socket.join(room);
+    console.log(`User joined room ${room}`);
+    io.to(room).emit('message', 'a new user has joined the room');
+  });
+  
+  socket.on('message', (msg) => {
+    console.log('message: ' + msg);
+    io.emit('message', msg);
+  });
+});
 
-server.listen(port, () => console.log(`Server running on port ${port}`));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});

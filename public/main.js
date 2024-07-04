@@ -1,83 +1,87 @@
-console.log('main.js loaded');
-
+const socket = io();
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
-let localStream;
-let peerConnection;
+const startButton = document.getElementById('startButton');
+const callButton = document.getElementById('callButton');
+const hangupButton = document.getElementById('hangupButton');
 
-const socket = io();
+let localStream;
+let remoteStream;
+let peerConnection;
+const servers = null;
 
 const constraints = {
-    video: true,
-    audio: true
+  video: true,
+  audio: true
 };
 
-navigator.mediaDevices.getUserMedia(constraints)
+startButton.onclick = start;
+callButton.onclick = call;
+hangupButton.onclick = hangup;
+
+function start() {
+  navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
-        console.log('Got MediaStream:', stream);
-        localVideo.srcObject = stream;
-        localStream = stream;
+      localVideo.srcObject = stream;
+      localStream = stream;
+      socket.emit('join', 'room1');
     })
     .catch(error => {
-        console.error('Error accessing media devices.', error);
-    });
-
-function createPeerConnection() {
-    peerConnection = new RTCPeerConnection();
-    console.log('Created RTCPeerConnection');
-
-    peerConnection.ontrack = event => {
-        console.log('Received remote stream:', event.streams[0]);
-        remoteVideo.srcObject = event.streams[0];
-    };
-
-    localStream.getTracks().forEach(track => {
-        console.log('Adding local track:', track);
-        peerConnection.addTrack(track, localStream);
+      console.error('Error accessing media devices.', error);
     });
 }
 
-socket.on('roomId', roomId => {
-    console.log('Received roomId:', roomId);
-});
+function call() {
+  peerConnection = new RTCPeerConnection(servers);
+  peerConnection.onicecandidate = handleIceCandidate;
+  peerConnection.ontrack = handleRemoteStreamAdded;
+  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+  
+  peerConnection.createOffer()
+    .then(sessionDescription => {
+      peerConnection.setLocalDescription(sessionDescription);
+      socket.emit('message', sessionDescription);
+    })
+    .catch(error => console.error('Error creating offer.', error));
+}
 
-socket.on('offer', async ({ offer }) => {
-    console.log('Received offer:', offer);
-    if (!peerConnection) createPeerConnection();
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    socket.emit('answer', { answer });
-});
+function handleIceCandidate(event) {
+  if (event.candidate) {
+    socket.emit('message', {
+      type: 'candidate',
+      candidate: event.candidate
+    });
+  }
+}
 
-socket.on('answer', async ({ answer }) => {
-    console.log('Received answer:', answer);
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-});
+function handleRemoteStreamAdded(event) {
+  remoteVideo.srcObject = event.streams[0];
+}
 
-document.getElementById('startButton').addEventListener('click', () => {
-    console.log('Start button clicked');
-    const gender = document.getElementById('gender').value;
-    const preference = document.getElementById('preference').value;
-    socket.emit('join', { gender, preference });
-    if (!peerConnection) createPeerConnection();
-    peerConnection.createOffer()
-        .then(offer => {
-            console.log('Created offer:', offer);
-            return peerConnection.setLocalDescription(offer);
-        })
-        .then(() => {
-            socket.emit('offer', { offer: peerConnection.localDescription });
-        });
-});
+function hangup() {
+  peerConnection.close();
+  peerConnection = null;
+}
 
-document.getElementById('skipButton').addEventListener('click', () => {
-    console.log('Skip button clicked');
-    if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-    }
-    const gender = document.getElementById('gender').value;
-    const preference = document.getElementById('preference').value;
-    socket.emit('join', { gender, preference });
-});
+socket.on('message', message => {
+  if (message.type === 'offer') {
+    peerConnection = new RTCPeerConnection(servers);
+    peerConnection.onicecandidate = handleIceCandidate;
+    peerConnection.ontrack = handleRemoteStreamAdded;
+    peerConnection.setRemoteDescription(new RTCSessionDescription(message));
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    
+    peerConnection.createAnswer()
+      .then(sessionDescription => {
+        peerConnection.setLocalDescription(sessionDescription);
+        socket.emit('message', sessionDescription);
+      })
+      .catch(error => console.error('Error creating answer.', error));
+  } else if (message.type === 'answer') {
+    peerConnection.setRemoteDescription(new RTCSessionDescription(message));
+  } else if (message.type === 'candidate') {
+    const candidate = new RTCIceCandidate({
+      sdpMLineIndex: message.candidate.sdpMLineIndex,
+      candidate: message.candidate.candidate
+    });
+    peerConnection.addIce
