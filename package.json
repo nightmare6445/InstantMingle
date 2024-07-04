@@ -1,14 +1,16 @@
 {
   "name": "instantmingle",
   "version": "1.0.0",
-  "description": "",
+  "description": "A video chat application ",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.17.1",
-    "socket.io": "^4.0.1"
+    "http": "^0.0.1-security",
+    "path": "^0.12.7",
+    "socket.io": "^4.1.3"
   },
   "author": "",
   "license": "ISC"
