@@ -1,74 +1,79 @@
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const startButton = document.getElementById('startButton');
-const skipButton = document.getElementById('skipButton');
+
+const socket = io.connect();
 
 let localStream;
+let remoteStream;
 let peerConnection;
-let socket = io();
 
-const constraints = {
-  video: true,
-  audio: true
+const config = {
+    iceServers: [
+        {
+            urls: 'stun:stun.l.google.com:19302'
+        }
+    ]
 };
 
-async function startStream() {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+startButton.onclick = async () => {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     localVideo.srcObject = localStream;
-  } catch (error) {
-    console.error('Error accessing media devices.', error);
-  }
-}
 
-startButton.addEventListener('click', () => {
-  startStream().then(() => {
-    socket.emit('ready', { gender: document.getElementById('gender').value, preference: document.getElementById('preference').value });
-  });
-});
+    peerConnection = new RTCPeerConnection(config);
 
-skipButton.addEventListener('click', () => {
-  socket.emit('skip');
-  resetCall();
-});
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-function resetCall() {
-  if (peerConnection) {
-    peerConnection.close();
-    peerConnection = null;
-  }
-  remoteVideo.srcObject = null;
-}
+    peerConnection.ontrack = (event) => {
+        if (!remoteStream) {
+            remoteStream = new MediaStream();
+            remoteVideo.srcObject = remoteStream;
+        }
+        remoteStream.addTrack(event.track);
+    };
 
-socket.on('offer', async (id, description) => {
-  peerConnection = new RTCPeerConnection();
-  peerConnection.onicecandidate = event => {
-    if (event.candidate) {
-      socket.emit('candidate', id, event.candidate);
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit('candidate', event.candidate);
+        }
+    };
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('offer', offer);
+};
+
+socket.on('offer', async (offer) => {
+    if (!peerConnection) {
+        peerConnection = new RTCPeerConnection(config);
+
+        peerConnection.ontrack = (event) => {
+            if (!remoteStream) {
+                remoteStream = new MediaStream();
+                remoteVideo.srcObject = remoteStream;
+            }
+            remoteStream.addTrack(event.track);
+        };
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('candidate', event.candidate);
+            }
+        };
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
     }
-  };
-  peerConnection.ontrack = event => {
-    remoteVideo.srcObject = event.streams[0];
-  };
-  await peerConnection.setRemoteDescription(description);
-  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-  const answer = await peerConnection.createAnswer();
-  await peerConnection.setLocalDescription(answer);
-  socket.emit('answer', id, peerConnection.localDescription);
+
+    await peerConnection.setRemoteDescription(offer);
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    socket.emit('answer', answer);
 });
 
-socket.on('answer', async (description) => {
-  await peerConnection.setRemoteDescription(description);
+socket.on('answer', async (answer) => {
+    await peerConnection.setRemoteDescription(answer);
 });
 
 socket.on('candidate', async (candidate) => {
-  try {
     await peerConnection.addIceCandidate(candidate);
-  } catch (error) {
-    console.error('Error adding received ICE candidate', error);
-  }
-});
-
-socket.on('disconnectPeer', () => {
-  resetCall();
 });
