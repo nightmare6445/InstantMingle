@@ -1,74 +1,41 @@
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const { v4: uuidv4 } = require('uuid');
-const path = require('path');
+const uuid = require('uuid');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Serve static files from the "public" directory
-app.use('/public', express.static(path.join(__dirname, 'public')));
+const port = process.env.PORT || 3000;
 
-// Serve index.html from the root
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+let rooms = {};
 
-let waitingUsers = [];
-
-// Socket.IO connection event
-io.on('connection', (socket) => {
-    console.log('New user connected');
+io.on('connection', socket => {
+    console.log('New client connected');
 
     socket.on('join', ({ gender, preference }) => {
-        console.log('User joined with gender:', gender, 'and preference:', preference);
-        const user = { id: socket.id, gender, preference };
-        const match = findMatch(user);
-
-        if (match) {
-            const roomId = uuidv4();
-            socket.join(roomId);
-            io.to(match.id).emit('roomId', roomId);
-            io.to(socket.id).emit('roomId', roomId);
-        } else {
-            waitingUsers.push(user);
-        }
+        const roomId = uuid.v4();
+        rooms[roomId] = { clients: [socket.id], gender, preference };
+        socket.join(roomId);
+        socket.emit('roomId', roomId);
     });
 
-    socket.on('offer', ({ offer }) => {
-        const room = Object.keys(socket.rooms).find(room => room !== socket.id);
-        console.log('Received offer for room:', room);
-        io.to(room).emit('offer', { offer });
+    socket.on('offer', ({ offer, roomId }) => {
+        socket.to(roomId).emit('offer', { offer });
     });
 
-    socket.on('answer', ({ answer }) => {
-        const room = Object.keys(socket.rooms).find(room => room !== socket.id);
-        console.log('Received answer for room:', room);
-        io.to(room).emit('answer', { answer });
+    socket.on('answer', ({ answer, roomId }) => {
+        socket.to(roomId).emit('answer', { answer });
     });
 
     socket.on('disconnect', () => {
-        waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
-        console.log('User disconnected');
+        console.log('Client disconnected');
+        // Handle cleanup and room management on disconnect
     });
 });
 
-function findMatch(user) {
-    for (let i = 0; i < waitingUsers.length; i++) {
-        const waitingUser = waitingUsers[i];
-        if (
-            (waitingUser.preference === 'any' || waitingUser.preference === user.gender) &&
-            (user.preference === 'any' || user.preference === waitingUser.gender)
-        ) {
-            waitingUsers.splice(i, 1);
-            return waitingUser;
-        }
-    }
-    return null;
-}
+app.use(express.static('public'));
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
+server.listen(port, () => console.log(`Server running on port ${port}`));

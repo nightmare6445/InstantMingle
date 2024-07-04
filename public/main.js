@@ -81,4 +81,3 @@ document.getElementById('skipButton').addEventListener('click', () => {
     const preference = document.getElementById('preference').value;
     socket.emit('join', { gender, preference });
 });
-
